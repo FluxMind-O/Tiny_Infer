@@ -1,0 +1,20 @@
+{
+  "name": "mlp3",
+  "input_shape": [1, 128],
+  "layers": [
+    {"type": "Linear", "in_features": 128, "out_features": 64},
+    {"type": "ReLU", "inplace": true},
+    {"type": "Linear", "in_features": 64, "out_features": 32},
+    {"type": "ReLU", "inplace": true},
+    {"type": "Linear", "in_features": 32, "out_features": 10},
+    {"type": "Softmax", "dim": 1}
+  ],
+  "weights": {
+    "layer0_weight": "weights/layer0_weight.bin",
+    "layer0_bias": "weights/layer0_bias.bin",
+    "layer2_weight": "weights/layer2_weight.bin",
+    "layer2_bias": "weights/layer2_bias.bin",
+    "layer4_weight": "weights/layer4_weight.bin",
+    "layer4_bias": "weights/layer4_bias.bin"
+  }
+}
