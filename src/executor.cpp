@@ -91,7 +91,7 @@ void Executor::capture_cuda_graph() {
         n.op->compute(ins, outs, ctx);
     }
     TINYINFER_CUDA_CHECK(cudaStreamEndCapture(s, &cuda_graph_));
-    TINYINFER_CUDA_CHECK(cudaGraphInstantiate(&cuda_graph_exec_, cuda_graph_, 0));
+    TINYINFER_CUDA_CHECK(cudaGraphInstantiate(&cuda_graph_exec_, cuda_graph_, NULL, NULL, 0));
     graph_captured_ = true;
 }
 

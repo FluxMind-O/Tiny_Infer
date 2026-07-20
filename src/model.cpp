@@ -16,7 +16,8 @@ ValuePtr parse_file(const std::string& path) {
     if (!f) throw std::runtime_error("Model: cannot open JSON '" + path + "'");
     std::stringstream ss;
     ss << f.rdbuf();
-    Parser p(ss.str());
+    std::string content = ss.str();
+    Parser p(content);
     return p.parse();
 }
 }  // namespace json
@@ -193,9 +194,11 @@ void build_graph(Model& model, ComputeGraph& graph,
 void free_model_weights(Model& model) {
     for (auto& kv : model.weights) {
         if (kv.second) {
-            cudaFree(kv.second);
+            cudaFree((void*)kv.second);
             kv.second = nullptr;
         }
     }
     model.weights.clear();
 }
+
+} // namespace tinynfer

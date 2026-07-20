@@ -64,12 +64,17 @@ size_t MemoryPlanner::plan(ComputeGraph& graph, const std::vector<int>& order,
                 graph.tensor(s.tid).offset = (int)it->first;
                 running.push_back({s.last_use, it->first, s.size});
                 // 如果 slot 比需要的大，将剩余空间放回 free_list
+                size_t extra_offset = 0, extra_size = 0;
+                bool has_extra = false;
                 if (it->second > s.size) {
-                    size_t extra_offset = it->first + s.size;
-                    size_t extra_size = it->second - s.size;
-                    free_list.push_back({extra_offset, extra_size});
+                    extra_offset = it->first + s.size;
+                    extra_size = it->second - s.size;
+                    has_extra = true;
                 }
                 free_list.erase(it);
+                if (has_extra) {
+                    free_list.push_back({extra_offset, extra_size});
+                }
                 placed = true;
                 break;
             }

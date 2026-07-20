@@ -26,6 +26,10 @@ list(REMOVE_ITEM TINYINFER_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 add_library(tinyinfer SHARED ${TINYINFER_SRCS})
 target_include_directories(tinyinfer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(tinyinfer PUBLIC cuda_std_17)
+find_package(CUDAToolkit REQUIRED)
+target_link_libraries(tinyinfer PUBLIC CUDA::cudart)
+find_package(CUDAToolkit REQUIRED)
+target_link_libraries(tinyinfer PUBLIC CUDA::cudart)
 set_target_properties(tinyinfer PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     POSITION_INDEPENDENT_CODE ON

@@ -2,7 +2,7 @@
 #include "tinyinfer/ops.h"
 #include "tinyinfer/common.h"
 #include "tinyinfer/registry.h"
-#include "kernels_launcher.h"
+#include "tinyinfer/kernels_launcher.h"
 #include <stdexcept>
 
 namespace tinynfer {
