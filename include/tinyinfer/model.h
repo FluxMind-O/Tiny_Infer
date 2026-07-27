@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // 一层（layer）的 JSON 配置
 struct LayerCfg {
@@ -31,12 +31,15 @@ void load_weights_to_device(Model& model);
 
 // 根据 Model 构建计算图（含算子实例、边、融合优化）
 // 返回 graph 与输入/输出 tensor id 信息
+// fuse_gemm_relu：自动识别 Linear+ReLU 模式替换为融合算子
+// use_cublas：Linear 使用 cuBLAS 基线实现（外部参照，此时融合自动关闭）
 // 注意：分配的权重 device 指针将存入 model.weights，需调用 free_model_weights() 释放
 void build_graph(Model& model, ComputeGraph& graph,
                  int& input_tid, int& output_tid,
-                 bool fuse_gemm_relu = true);
+                 bool fuse_gemm_relu = true,
+                 bool use_cublas = false);
 
 // 释放 build_graph 中分配的权重 device 显存
 void free_model_weights(Model& model);
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

@@ -6,7 +6,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // 计算图中的单个节点：持有一个算子实例 + 其输入/输出 tensor id
 struct GraphNode {
@@ -49,4 +49,4 @@ private:
     std::vector<GraphNode> nodes_;
 };
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

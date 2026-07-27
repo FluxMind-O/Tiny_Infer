@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <cuda_runtime.h>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // 统一浮点精度（FP32，与 PDF 中 Benchmark 一致）
 using dtype = float;
@@ -25,6 +25,12 @@ using dtype = float;
         }                                                                      \
     } while (0)
 
+// 日志宏（阶段四：统一日志系统）
+#define TINYINFER_LOG(fmt, ...) \
+    fprintf(stdout, "[TinyInfer] " fmt "\n", ##__VA_ARGS__)
+#define TINYINFER_WARN(fmt, ...) \
+    fprintf(stderr, "[TinyInfer][WARN] " fmt "\n", ##__VA_ARGS__)
+
 // 简单计时（微秒）
 double get_wall_time_us();
 
@@ -32,4 +38,4 @@ double get_wall_time_us();
 void print_tensor(const dtype* h_data, int n, const std::string& name,
                   int max_print = 8);
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

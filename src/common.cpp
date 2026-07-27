@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <chrono>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 double get_wall_time_us() {
     static auto start = std::chrono::high_resolution_clock::now();
@@ -19,4 +19,4 @@ void print_tensor(const dtype* h_data, int n, const std::string& name,
     printf("]\n");
 }
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

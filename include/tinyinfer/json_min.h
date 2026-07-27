@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <cctype>
 
-namespace tinynfer {
+namespace tinyinfer {
 namespace json {
 
 struct Value;
@@ -179,4 +179,4 @@ private:
 ValuePtr parse_file(const std::string& path);
 
 }  // namespace json
-}  // namespace tinynfer
+}  // namespace tinyinfer

@@ -3,7 +3,7 @@
 #include "op.h"
 #include <vector>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // ---------- Linear (GEMM): Y = X @ W^T + b ----------
 // 权重 W 形状 [out_features, in_features]，按行主序存储。
@@ -24,6 +24,24 @@ private:
     int in_f_, out_f_;
     const dtype* W_;   // device 指针（权重，规划在常量区/独立 buffer）
     const dtype* b_;   // device 指针（偏置，可为 nullptr）
+};
+
+// ---------- CublasLinear: cuBLAS SGEMM 基线 ----------
+// 外部参照实现（任务 2.4）：库函数手动编排，GEMM 由 cuBLAS 完成，
+// 偏置由独立 BiasAdd kernel 完成，不参与融合。用作性能对比的公平基线。
+class CublasLinearOp : public Op {
+public:
+    CublasLinearOp(int in_features, int out_features,
+                   const dtype* W, const dtype* b)
+        : in_f_(in_features), out_f_(out_features), W_(W), b_(b) {}
+    const char* type() const override { return "CublasLinear"; }
+    void compute(const std::vector<Tensor*>& inputs,
+                 const std::vector<Tensor*>& outputs,
+                 ExecContext& ctx) override;
+private:
+    int in_f_, out_f_;
+    const dtype* W_;
+    const dtype* b_;
 };
 
 // ---------- BiasAdd: Y = X + b （按特征维广播） ----------
@@ -80,4 +98,4 @@ private:
     const dtype* b_;
 };
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

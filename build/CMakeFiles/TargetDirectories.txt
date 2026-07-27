@@ -1,5 +1,0 @@
-/root/tiny_Infer/build/CMakeFiles/tinyinfer.dir
-/root/tiny_Infer/build/CMakeFiles/tinyinfer_cli.dir
-/root/tiny_Infer/build/CMakeFiles/tinyinfer_test.dir
-/root/tiny_Infer/build/CMakeFiles/edit_cache.dir
-/root/tiny_Infer/build/CMakeFiles/rebuild_cache.dir

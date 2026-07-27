@@ -1,0 +1,55 @@
+{
+  "name": "mlp_large",
+  "input_shape": [
+    1,
+    1024
+  ],
+  "layers": [
+    {
+      "type": "Linear",
+      "in_features": 1024,
+      "out_features": 512
+    },
+    {
+      "type": "ReLU",
+      "inplace": true
+    },
+    {
+      "type": "Linear",
+      "in_features": 512,
+      "out_features": 256
+    },
+    {
+      "type": "ReLU",
+      "inplace": true
+    },
+    {
+      "type": "Linear",
+      "in_features": 256,
+      "out_features": 128
+    },
+    {
+      "type": "ReLU",
+      "inplace": true
+    },
+    {
+      "type": "Linear",
+      "in_features": 128,
+      "out_features": 10
+    },
+    {
+      "type": "Softmax",
+      "dim": 1
+    }
+  ],
+  "weights": {
+    "layer0_weight": "weights/mlp_large/layer0_weight.bin",
+    "layer0_bias": "weights/mlp_large/layer0_bias.bin",
+    "layer2_weight": "weights/mlp_large/layer2_weight.bin",
+    "layer2_bias": "weights/mlp_large/layer2_bias.bin",
+    "layer4_weight": "weights/mlp_large/layer4_weight.bin",
+    "layer4_bias": "weights/mlp_large/layer4_bias.bin",
+    "layer6_weight": "weights/mlp_large/layer6_weight.bin",
+    "layer6_bias": "weights/mlp_large/layer6_bias.bin"
+  }
+}

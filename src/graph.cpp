@@ -4,7 +4,7 @@
 #include <queue>
 #include <algorithm>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 int ComputeGraph::add_tensor(const std::vector<int>& shape) {
     Tensor t;
@@ -85,4 +85,4 @@ void ComputeGraph::analyze_lifetimes(const std::vector<int>& order) {
     }
 }
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

@@ -1,18 +1,26 @@
 #pragma once
-// 执行引擎：拓扑排序 + 异步 Stream 调度 + CUDA Graph 固化
+// 执行引擎：拓扑排序 + 单 Stream 调度 + CUDA Graph 固化
 #include "common.h"
 #include "graph.h"
 #include "memory.h"
 #include <vector>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 struct ExecOptions {
-    bool use_async_stream = true;   // 保留接口；compute 图在单一 stream 上顺序执行，
-                                    // 以保证复用 buffer 的读写依赖正确（避免竞争）
-    bool use_cuda_graph = true;     // 固化推理流程，消除 CPU launch overhead
-    bool fuse_gemm_relu = true;     // 将 Linear+ReLU 融合为 FusedLinearReLU
-    int num_streams = 3;            // 保留接口，当前仅创建 stream[0] 用于 compute
+    bool fuse_gemm_relu = true;   // 将 Linear+ReLU 融合为 FusedLinearReLU（--no-fuse 关闭）
+    bool reuse_memory = true;     // 静态显存规划复用中间 buffer（--no-reuse 关闭）
+    bool use_cuda_graph = true;   // 固化推理流程，消除 CPU launch overhead（--no-graph 关闭）
+};
+
+// benchmark 统计结果（cudaEvent 记录 GPU 端时间，不含 H2D/D2H 拷贝）
+struct BenchStats {
+    double mean_us = 0.0;
+    double stddev_us = 0.0;
+    double p50_us = 0.0;
+    double p99_us = 0.0;
+    double min_us = 0.0;
+    int iters = 0;
 };
 
 class Executor {
@@ -20,7 +28,7 @@ public:
     Executor(ComputeGraph& graph, const ExecOptions& opt = ExecOptions{});
     ~Executor();
 
-    // 准备：静态显存规划 + 分配 + （可选）构建 CUDA Graph
+    // 准备：拓扑排序 + 生命周期分析 + 静态显存规划 + 分配 + 预热（Graph 捕获前）
     void prepare();
 
     // 设置输入 tensor（host -> device）。input 为 row-major [batch, in_features]
@@ -29,11 +37,12 @@ public:
     // 取输出（device -> host）。返回输出 tensor 的 host 拷贝。
     void get_output(std::vector<dtype>& h_output);
 
-    // 执行一次前向推理
+    // 执行一次前向推理（纯计算，不含 H2D/D2H）
     void run();
 
-    // 性能基准：重复 n 次，返回平均延迟（微秒）
-    double benchmark(int n);
+    // 性能基准：预热 warmup 次后测量 iters 次，cudaEvent 逐次计时，
+    // 返回 mean / stddev / P50 / P99 / min（微秒）
+    BenchStats benchmark(int warmup = 100, int iters = 1000);
 
     size_t planned_bytes() const { return planner_.total_bytes(); }
 
@@ -43,9 +52,8 @@ public:
     }
 
 private:
-    void build_graph();          // 执行所有节点（捕获或即时）
-    void capture_cuda_graph();   // 第一次推理：cudaStreamBeginCapture
-    void launch_cuda_graph();    // 后续推理：cudaGraphLaunch
+    void run_once_on_stream();     // 按拓扑序在 stream 上执行全部节点
+    void capture_cuda_graph();     // 预热完成后捕获整个计算流
 
     ComputeGraph& graph_;
     ExecOptions opt_;
@@ -59,10 +67,10 @@ private:
     int output_tid_ = -1;
     int batch_ = 1;
 
-    std::vector<cudaStream_t> streams_;
+    cudaStream_t stream_ = nullptr;   // 单 Stream 设计
     bool graph_captured_ = false;
     cudaGraph_t cuda_graph_ = nullptr;
     cudaGraphExec_t cuda_graph_exec_ = nullptr;
 };
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

@@ -3,7 +3,7 @@
 #include "common.h"
 #include <cuda_runtime.h>
 
-namespace tinynfer {
+namespace tinyinfer {
 namespace kernels {
 
 void launch_gemm(const dtype* A, const dtype* W, const dtype* B, dtype* C,
@@ -16,4 +16,4 @@ void launch_relu(const dtype* X, dtype* Y, int n, cudaStream_t s);
 void launch_softmax(const dtype* X, dtype* Y, int M, int N, cudaStream_t s);
 
 }  // namespace kernels
-}  // namespace tinynfer
+}  // namespace tinyinfer

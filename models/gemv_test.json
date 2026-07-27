@@ -1,0 +1,18 @@
+{
+  "name": "gemv_test",
+  "input_shape": [
+    1,
+    1024
+  ],
+  "layers": [
+    {
+      "type": "Linear",
+      "in_features": 1024,
+      "out_features": 512
+    }
+  ],
+  "weights": {
+    "layer0_weight": "weights/gemv_test/layer0_weight.bin",
+    "layer0_bias": "weights/gemv_test/layer0_bias.bin"
+  }
+}

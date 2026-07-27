@@ -3,7 +3,7 @@
 #include "common.h"
 #include <vector>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // Tensor 描述：形状 + device 指针（由 MemoryPlanner 在静态规划阶段分配）
 struct Tensor {
@@ -22,4 +22,4 @@ struct Tensor {
     }
 };
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

@@ -2,7 +2,7 @@
 #include "tinyinfer/common.h"
 #include <cstdio>
 
-namespace tinynfer {
+namespace tinyinfer {
 namespace kernels {
 
 // -------------------- GEMM (Tiling, shared memory) --------------------
@@ -192,4 +192,4 @@ void launch_softmax(const dtype* X, dtype* Y, int M, int N, cudaStream_t s) {
 }
 
 }  // namespace kernels
-}  // namespace tinynfer
+}  // namespace tinyinfer

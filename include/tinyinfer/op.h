@@ -4,7 +4,7 @@
 #include "tensor.h"
 #include <string>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // 前向执行上下文：传入 stream、输入/输出 tensor
 struct ExecContext {
@@ -30,4 +30,4 @@ public:
     virtual size_t workspace_bytes() const { return 0; }
 };
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

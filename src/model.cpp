@@ -8,7 +8,7 @@
 #include <sstream>
 #include <cstring>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 namespace json {
 ValuePtr parse_file(const std::string& path) {
@@ -101,7 +101,10 @@ void load_weights_to_device(Model& model) {
 }
 
 void build_graph(Model& model, ComputeGraph& graph,
-                 int& input_tid, int& output_tid, bool fuse_gemm_relu) {
+                 int& input_tid, int& output_tid, bool fuse_gemm_relu,
+                 bool use_cublas) {
+    // cuBLAS 基线为库函数手动编排，不做图优化融合
+    if (use_cublas) fuse_gemm_relu = false;
     input_tid = graph.add_tensor(model.input_shape);
     graph.tensor(input_tid).fixed = true;
 
@@ -165,8 +168,9 @@ void build_graph(Model& model, ComputeGraph& graph,
                 std::unordered_map<std::string, const dtype*> wmap;
                 wmap[wkey] = W;
                 if (B) wmap[bkey] = B;
-                auto op = OpRegistry::instance().create("Linear", cfg, wmap);
-                graph.add_node(std::move(op), "Linear", {prev_tid}, {out_tid});
+                const char* linear_type = use_cublas ? "CublasLinear" : "Linear";
+                auto op = OpRegistry::instance().create(linear_type, cfg, wmap);
+                graph.add_node(std::move(op), linear_type, {prev_tid}, {out_tid});
             }
             prev_tid = out_tid;
         } else if (type == "ReLU") {
@@ -201,4 +205,4 @@ void free_model_weights(Model& model) {
     model.weights.clear();
 }
 
-} // namespace tinynfer
+} // namespace tinyinfer

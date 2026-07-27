@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <memory>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // 算子创建器：根据 layer 配置 + 权重指针，构造 Op 实例。
 // 参数约定：in/out features 用于 Linear；weights 为已加载到 device 的指针。
@@ -38,4 +38,4 @@ private:
         }                                                                   \
     } _reg_##Type;
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

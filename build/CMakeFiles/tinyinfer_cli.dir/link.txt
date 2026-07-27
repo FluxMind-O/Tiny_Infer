@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/tinyinfer_cli.dir/src/main.cpp.o -o tinyinfer  -Wl,-rpath,/root/tiny_Infer/build:/usr/local/cuda/lib64 libtinyinfer.so /usr/local/cuda/lib64/libcudart.so 

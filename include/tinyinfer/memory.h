@@ -4,7 +4,7 @@
 #include "graph.h"
 #include <vector>
 
-namespace tinynfer {
+namespace tinyinfer {
 
 // 静态显存规划策略：
 // 1. 计算每个中间 tensor 的生命周期区间 [first_use, last_use]
@@ -30,4 +30,4 @@ private:
     size_t total_bytes_ = 0;
 };
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

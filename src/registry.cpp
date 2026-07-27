@@ -2,7 +2,7 @@
 #include "tinyinfer/registry.h"
 #include "tinyinfer/ops.h"
 
-namespace tinynfer {
+namespace tinyinfer {
 
 OpRegistry& OpRegistry::instance() {
     static OpRegistry reg;
@@ -27,4 +27,4 @@ bool OpRegistry::has(const std::string& type) const {
     return creators_.find(type) != creators_.end();
 }
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

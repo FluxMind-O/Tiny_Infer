@@ -4,7 +4,12 @@
 #include <algorithm>
 #include <vector>
 
-namespace tinynfer {
+namespace tinyinfer {
+
+// 256 字节对齐（CUDA 全局内存访问的最优对齐粒度）
+static inline size_t align_up(size_t bytes, size_t align = 256) {
+    return (bytes + align - 1) / align * align;
+}
 
 size_t MemoryPlanner::plan(ComputeGraph& graph, const std::vector<int>& order,
                            bool reuse) {
@@ -21,7 +26,7 @@ size_t MemoryPlanner::plan(ComputeGraph& graph, const std::vector<int>& order,
         size_t total = 0;
         for (int t : live) {
             graph.tensor(t).offset = (int)total;
-            total += graph.tensor(t).size * sizeof(dtype);
+            total += align_up(graph.tensor(t).size * sizeof(dtype));
         }
         total_bytes_ = total;
         return total;
@@ -36,7 +41,7 @@ size_t MemoryPlanner::plan(ComputeGraph& graph, const std::vector<int>& order,
     for (int t : live) {
         segs.push_back({t, graph.tensor(t).first_use,
                         graph.tensor(t).last_use,
-                        (size_t)graph.tensor(t).size * sizeof(dtype)});
+                        align_up((size_t)graph.tensor(t).size * sizeof(dtype))});
     }
     std::sort(segs.begin(), segs.end(),
               [](const Seg& a, const Seg& b) { return a.first_use < b.first_use; });
@@ -102,4 +107,4 @@ dtype* MemoryPlanner::allocate(ComputeGraph& graph) {
     return buf;
 }
 
-}  // namespace tinynfer
+}  // namespace tinyinfer

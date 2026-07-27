@@ -1,140 +1,135 @@
-# TinyInfer —— 基于 CUDA 的极简神经网络推理引擎
+# TinyInfer —— 面向小模型场景的 CUDA 推理引擎
 
-> 支持计算图加载、算子融合、显存静态规划与 CUDA Graph 固化的 GPU 推理引擎，专为小规模 MLP 模型的高效推理设计。
+> 支持计算图加载、算子融合、静态显存规划与 CUDA Graph 固化的 GPU 推理引擎，
+> 专为小规模 MLP（hidden ≤ 1024，batch ≤ 8，FP32）设计。
+> 定位：**教学型推理引擎 + 可控消融实验平台**（定位依据见「项目动机」）。
 
-## 一、目录结构
+## 项目动机（数据说话，非既定结论）
 
-```
-tinyinfer/
-├── CMakeLists.txt
-├── include/tinyinfer/
-│   ├── common.h            # 公共类型 / CUDA 检查 / 计时
-│   ├── tensor.h            # Tensor 抽象（含生命周期字段）
-│   ├── op.h                # 算子基类
-│   ├── ops.h               # GEMM/BiasAdd/ReLU/Softmax/FusedLinearReLU
-│   ├── graph.h             # 计算图 DAG + 拓扑排序 + 生命周期分析
-│   ├── memory.h            # 静态显存规划器
-│   ├── registry.h          # 算子注册表（工厂模式）
-│   ├── executor.h          # 执行引擎（Stream + CUDA Graph）
-│   ├── model.h             # 模型加载接口
-│   ├── json_min.h          # 轻量 JSON 解析器（无外部依赖）
-│   └── kernels_launcher.h  # CUDA kernel 启动封装声明
-├── src/
-│   ├── common.cpp
-│   ├── kernels.cu          # 手写 Tiling GEMM + FusedGemmReLU + BiasAdd/ReLU/Softmax
-│   ├── ops.cpp             # 算子 compute 实现
-│   ├── graph.cpp
-│   ├── memory.cpp
-│   ├── registry.cpp
-│   ├── model.cpp           # JSON 解析 + 权重加载 + 计算图构建
-│   ├── executor.cpp
-│   └── main.cpp            # CLI
-├── test/test_main.cpp
-├── tools/gen_weights.py    # 权重/输入/参考输出生成
-└── models/mlp3.json
-```
+开发前用 ONNX Runtime 基线验证了两个前置假设（完整数据见
+[docs/motivation_report.md](docs/motivation_report.md)）：
 
-## 二、四层架构
+- **H1（通用框架开销 ≥ 2×）：不成立。** ORT 1.23 在纯 CPU（Xeon 4214R）上跑
+  mlp_large batch=1 仅需 ~48 μs，不慢于本引擎 GPU 全优化配置（~74 μs）。
+- **H2（Launch 开销占比 ≥ 30%）：部分成立但被高估。** 实测每次 kernel launch
+  摊销 ~1.4 μs，在 8-kernel 链路中占比约 5~10%。
+
+因此本项目不声称「比通用框架快」，价值在于把推理引擎的四大机制完整实现，
+并用**可 30 秒复现的消融数据**讲清楚每个优化的真实收益与边界。
+
+## 四层架构
 
 ```
 +--------------------------------------------------+
-|  Loader (JSON)                                    |
-|    解析计算图描述，构建 DAG                         |
+|  Model Loader (JSON + 二进制权重)                  |
+|    解析模型描述，构建 DAG，自动融合 Linear+ReLU      |
 +--------------------------------------------------+
 |  Compute Graph (DAG)                              |
-|    Input -> GEMM -> BiasAdd -> ReLU               |
-|         -> GEMM -> Softmax                        |
+|    Kahn 拓扑排序 + 张量生命周期分析                 |
 +--------------------------------------------------+
 |  Memory Planner                                   |
-|    分析生命周期，静态分配，复用中间 buffer (~40%↓)    |
+|    生命周期区间复用，256B 对齐，一次 cudaMalloc      |
 +--------------------------------------------------+
-|  Executor / Scheduler                             |
-|    拓扑排序 -> 顺序 Stream 执行 -> CUDA Graph 固化   |
-|    算子库: [GEMM, BiasAdd, ReLU, Softmax]          |
-|    融合算子: [FusedGemmReLU]                       |
+|  Executor（单 Stream）                             |
+|    拓扑顺序执行 -> CUDA Graph 捕获与重放            |
 +--------------------------------------------------+
 ```
 
-## 三、三个核心优化点
+## 三个核心优化（收益均可复现）
 
-1. **FusedGemmReLU 融合算子** ⭐
-   - 问题：GEMM 把结果写回 Global Memory，ReLU 再读出 → 多一次读写 + 一次 launch。
-   - 做法：在 GEMM kernel 的 epilogue 阶段，C 矩阵仍在寄存器/Shared Memory 时就地 ReLU，仅写回一次 Global Memory。
-   - 效果：小矩阵（256×256）加速比约 1.3×，显存带宽占用减半。
+1. **FusedLinearReLU 融合算子**：GEMM epilogue 阶段就地完成 BiasAdd+ReLU，
+   全局内存只写一次。实测独立收益 ~4.7 μs（batch=1），其中约 2 μs 与
+   CUDA Graph 的 launch 节省重叠（2×2 解耦实验测得，见下文）。
+2. **静态显存规划**：按生命周期区间贪心复用中间 buffer，256B 对齐，
+   初始化一次 `cudaMalloc`。对延迟贡献≈0（预期内），价值在显存峰值与
+   分配次数：mlp_large 中间张量 4 块复用为 3 块 buffer，峰值降 16~20%。
+3. **CUDA Graph 固化**：预热后捕获纯计算 kernel 序列，后续一次
+   `cudaGraphLaunch` 提交。实测省 ~4.5 μs（launch 开销摊销）。
+   H2D/D2H 在图外通过固定地址交互。
 
-2. **静态显存规划器**
-   - 分析每个 tensor 的 `first_use` / `last_use` 生命周期区间，对不重叠的 tensor 复用同一显存区域（区间图着色 / 内存池复用）。
-   - 4 层 MLP 显存从 48MB 降至 16MB（减少约 66%），并消除运行时 `cudaMalloc`。
+## Benchmark（实测数据）
 
-3. **CUDA Graph 固化**
-   - 第一次推理用 `cudaStreamBeginCapture` 捕获整个计算流程（GEMM/BiasAdd/ReLU/Softmax 的 kernel launch 序列）；后续推理用 `cudaGraphLaunch` 一次性提交，消除 CPU launch 开销（~5–10μs/launch）。
-   - 输入 H2D 与输出 D2H 在图外通过 `set_input`/`get_output` 完成，与捕获的 compute 图配合形成端到端推理。
-   - 3 层 MLP 延迟降低约 30%，甚至优于纯 cuBLAS（cuBLAS 无 Graph 优化）。
+测试环境：RTX 3080 Ti / CUDA 11.8 / 驱动 580.76.05 / Xeon Silver 4214R。
+模型：mlp_large（1024→512→256→128→10）。口径：预热 100 + 测量 1000 次，
+cudaEvent GPU 端计时（不含 H2D/D2H）。复现：`./build/tinyinfer_test .`
 
-## 四、构建
+延迟单位 μs（mean；完整 mean±std/P50/P99/min 见测试输出）：
+
+| 配置 | kernels | batch=1 | batch=4 | batch=8 |
+|---|---|---|---|---|
+| Config 0 无优化 | 8 | 95.8 | 83.6 | 84.3 |
+| Config 1 +融合 | 5 | 90.9 | 79.0 | 79.2 |
+| Config 2 +显存复用 | 5 | 78.4 | 79.1 | 82.5 |
+| Config 3 +CUDA Graph | 5 | 73.9 | 74.6 | 76.0 |
+| cuBLAS 基线（参照） | 12 | 53.0 | 53.4 | 70.1 |
+| ORT 参照（CPU，wall time） | - | 48.1 | - | 136.7(P50) |
+
+融合 × Graph 2×2 解耦（batch=1，reuse 关闭）：
+
+| fuse \ graph | 关 | 开 |
+|---|---|---|
+| 关 | 82.9 | 76.8 |
+| 开 | 78.3 | 74.0 |
+
+融合单独开省 4.7 μs；已开 Graph 后融合的边际收益收窄为 2.9 μs
+（交互项 ~1.8 μs，即融合的 launch 收益被 Graph 覆盖的部分）。
+
+### 诚实归因
+
+- **显存复用对延迟无显著影响**（Config 1→2 差异 < 2×stddev），符合预期——
+  它不改动任何 kernel，价值体现在显存类指标，见上。
+- **手写 GEMM 落后 cuBLAS**：Config 3（74 μs）vs cuBLAS 基线（53 μs）。
+  归因：M ≤ 8 的 skinny 形状下 tiling kernel（TILE=16）并行度不足——
+  M=1 单层微基准实测手写 48.3 μs vs cuBLAS 11.8 μs，有效带宽
+  ~43 GB/s vs ~178 GB/s（3080 Ti 理论 912 GB/s，达成率 5% vs 20%）。
+  skinny GEMM 是带宽瓶颈型负载，但当前实现的瓶颈在并行度；
+  split-K / GEMV 专用路径是已识别的改进方向（未实施）。
+- 同环境两次重测存在 ~10% 漂移（GPU 时钟策略），消融结论均按
+  「增量 ≥ 2×stddev 才视为显著」判读。
+
+## 构建与运行
 
 ```bash
-git clone <repo> && cd tinyinfer
-python3 tools/gen_weights.py
-# 根据你的显卡架构设置，例如 A100=80, T4=75, 3090=86
-cmake -S . -B build -DCMAKE_CUDA_ARCHITECTURES=80
+python3 tools/gen_weights.py        # 生成 mlp3 / mlp_large 权重与 batch{1,4,8} 数据
+cmake -S . -B build -DCMAKE_CUDA_ARCHITECTURES=86   # 按显卡调整：A100=80 T4=75
 cmake --build build -j8
 ```
 
-构建产物：
-- `libtinyinfer.so` —— 推理引擎动态库（可独立演进，作为项目一的推理后端）
-- `tinyinfer` —— CLI 可执行程序
-- `tinyinfer_test` —— 数值正确性 + 性能基准测试
-
-## 五、运行推理
-
 ```bash
-# 1. 生成示例权重与参考输出（需要 numpy）
-python3 tools/gen_weights.py
+# 推理（开关可任意组合）
+./build/tinyinfer --model models/mlp_large.json --input data/mlp_large_b1.bin
+./build/tinyinfer --model models/mlp_large.json --input data/mlp_large_b8.bin --batch 8 --bench
+./build/tinyinfer --model models/mlp_large.json --input data/mlp_large_b1.bin --no-fuse --no-reuse --no-graph
+./build/tinyinfer --model models/mlp_large.json --input data/mlp_large_b1.bin --cublas  # cuBLAS 基线
 
-# 2. 运行推理
-./build/tinyinfer --model models/mlp3.json --input data/sample.bin
-./build/tinyinfer --model models/mlp3.json --input data/sample.bin --bench 100
+# 统一测试：数值正确性（全配置 × batch{1,4,8}）+ 显存对比 + 消融基准 + 2×2 解耦
+./build/tinyinfer_test .
 
-# 自定义文本输入
-echo "1.0,2.0,3.0,..." > input.txt
-./build/tinyinfer --model models/mlp3.json --input input.txt
-
-# 批量推理
-./build/tinyinfer --model models/mlp3.json --input data/batch4.bin --batch 4
+# 阶段零 ORT 基线（需 pip install onnxruntime onnx）
+python3 tools/ort_baseline.py 1
 ```
 
-## 六、自定义模型（JSON）
+## 支持范围与局限性（非目标即设计选择）
 
-```json
-{
-  "name": "mlp3",
-  "input_shape": [1, 128],
-  "layers": [
-    {"type": "Linear", "in_features": 128, "out_features": 64},
-    {"type": "ReLU", "inplace": true},
-    {"type": "Linear", "in_features": 64, "out_features": 32},
-    {"type": "ReLU", "inplace": true},
-    {"type": "Linear", "in_features": 32, "out_features": 10},
-    {"type": "Softmax", "dim": 1}
-  ],
-  "weights": {
-    "layer0_weight": "weights/layer0_weight.bin",
-    "layer0_bias": "weights/layer0_bias.bin",
-    "layer2_weight": "weights/layer2_weight.bin",
-    "layer2_bias": "weights/layer2_bias.bin",
-    "layer4_weight": "weights/layer4_weight.bin",
-    "layer4_bias": "weights/layer4_bias.bin"
-  }
-}
+- 仅支持线性 MLP（Linear / BiasAdd / ReLU / Softmax），FP32，固定 Shape，
+  batch ∈ [1, 8]，单 NVIDIA GPU；
+- 不支持 CNN/Transformer、动态 Shape、FP16/INT8、Tensor Core、多卡多流、
+  服务化部署；
+- 手写 GEMM 为通用 tiling 实现，未做 skinny 形状特化，性能落后于 cuBLAS
+  （数据见上），替换 cuBLAS 不是当前形态下的性能卖点；
+- 模型格式为自定义 JSON + 二进制权重（`tools/gen_weights.py` 可生成示例）。
+
+## 目录结构
+
+```
+include/tinyinfer/   引擎头文件（tensor/op/graph/memory/executor/registry/json_min）
+src/                 引擎实现（kernels.cu 为手写 tiling GEMM + 融合/基础算子）
+src/main.cpp         CLI（--no-fuse/--no-reuse/--no-graph/--cublas/--bench）
+test/test_main.cpp   统一测试入口（数值 / 显存 / 消融基准 / 2×2 解耦）
+tools/gen_weights.py 权重与测试数据生成；tools/ort_baseline.py ORT 基线
+docs/motivation_report.md  阶段零动机验证报告（H1/H2 结论与归因）
 ```
 
-> 当 `Linear` 后紧跟 `ReLU` 且启用融合时，引擎会自动将其合并为 `FusedLinearReLU`，减少一次 Global Memory 读写。
+## License
 
-## 七、测试结果
-
-`tinyinfer_test` 会：
-- 用 numpy 参考实现校验前向数值正确性（max abs error < 1e-3）
-- 对比静态规划（复用）与独立分配的显存占用
-- 对比融合 + CUDA Graph 与未优化的延迟
-
+MIT，见 [LICENSE](LICENSE)。
