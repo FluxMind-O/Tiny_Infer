@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans CJK SC, WenQuanYi Micro Hei, sans-serif">
+  <rect width="1200" height="700" fill="#F5F0E6"/>
+
+  <!-- header -->
+  <text x="60" y="58" font-size="12.5" letter-spacing="4" fill="#8A8271">TINYINFER · SYSTEM OVERVIEW</text>
+  <text x="60" y="106" font-size="34" font-weight="700" fill="#173F3C">四层架构：从 JSON 到 CUDA Graph 重放</text>
+  <line x1="60" y1="132" x2="1140" y2="132" stroke="#CBC1AC" stroke-width="1"/>
+
+  <!-- ============ left: layer cards ============ -->
+  <!-- card 01 -->
+  <g>
+    <rect x="60" y="158" width="620" height="104" rx="4" fill="#FCFAF3" stroke="#D9CFBB"/>
+    <rect x="82" y="178" width="44" height="30" rx="3" fill="none" stroke="#0F6B5C" stroke-width="1.4"/>
+    <text x="104" y="199" font-size="15" font-weight="700" fill="#0F6B5C" text-anchor="middle">01</text>
+    <text x="144" y="200" font-size="19" font-weight="700" fill="#173F3C">Model Loader · 模型加载</text>
+    <text x="656" y="199" font-size="11" letter-spacing="1" fill="#8A8271" text-anchor="end">INIT</text>
+    <text x="144" y="228" font-size="13" fill="#4A463C">解析 JSON 图结构 + 二进制权重，构建 DAG</text>
+    <text x="144" y="248" font-size="13" fill="#4A463C">加载期自动融合 Linear + BiasAdd + ReLU：8 kernel → 5</text>
+  </g>
+  <line x1="370" y1="264" x2="370" y2="276" stroke="#0F6B5C" stroke-width="1.4" opacity="0.75"/>
+  <polygon points="365,276 375,276 370,282" fill="#0F6B5C" opacity="0.75"/>
+
+  <!-- card 02 -->
+  <g>
+    <rect x="60" y="282" width="620" height="104" rx="4" fill="#FCFAF3" stroke="#D9CFBB"/>
+    <rect x="82" y="302" width="44" height="30" rx="3" fill="none" stroke="#0F6B5C" stroke-width="1.4"/>
+    <text x="104" y="323" font-size="15" font-weight="700" fill="#0F6B5C" text-anchor="middle">02</text>
+    <text x="144" y="324" font-size="19" font-weight="700" fill="#173F3C">Compute Graph · 计算图</text>
+    <text x="656" y="323" font-size="11" letter-spacing="1" fill="#8A8271" text-anchor="end">INIT</text>
+    <text x="144" y="352" font-size="13" fill="#4A463C">Kahn 拓扑排序，确定 kernel 执行顺序</text>
+    <text x="144" y="372" font-size="13" fill="#4A463C">张量生命周期分析，输出 buffer 复用区间</text>
+  </g>
+  <line x1="370" y1="388" x2="370" y2="400" stroke="#0F6B5C" stroke-width="1.4" opacity="0.75"/>
+  <polygon points="365,400 375,400 370,406" fill="#0F6B5C" opacity="0.75"/>
+
+  <!-- card 03 -->
+  <g>
+    <rect x="60" y="406" width="620" height="104" rx="4" fill="#FCFAF3" stroke="#D9CFBB"/>
+    <rect x="82" y="426" width="44" height="30" rx="3" fill="none" stroke="#0F6B5C" stroke-width="1.4"/>
+    <text x="104" y="447" font-size="15" font-weight="700" fill="#0F6B5C" text-anchor="middle">03</text>
+    <text x="144" y="448" font-size="19" font-weight="700" fill="#173F3C">Memory Planner · 显存规划</text>
+    <text x="656" y="447" font-size="11" letter-spacing="1" fill="#8A8271" text-anchor="end">INIT</text>
+    <text x="144" y="476" font-size="13" fill="#4A463C">按生命周期区间贪心复用中间 buffer，256B 对齐</text>
+    <text x="144" y="496" font-size="13" fill="#4A463C">初始化时一次 cudaMalloc，运行期零分配</text>
+  </g>
+  <line x1="370" y1="512" x2="370" y2="524" stroke="#0F6B5C" stroke-width="1.4" opacity="0.75"/>
+  <polygon points="365,524 375,524 370,530" fill="#0F6B5C" opacity="0.75"/>
+
+  <!-- card 04 -->
+  <g>
+    <rect x="60" y="530" width="620" height="104" rx="4" fill="#FCFAF3" stroke="#D9CFBB"/>
+    <rect x="82" y="550" width="44" height="30" rx="3" fill="none" stroke="#0F6B5C" stroke-width="1.4"/>
+    <text x="104" y="571" font-size="15" font-weight="700" fill="#0F6B5C" text-anchor="middle">04</text>
+    <text x="144" y="572" font-size="19" font-weight="700" fill="#173F3C">Executor · 执行器</text>
+    <text x="656" y="571" font-size="11" letter-spacing="1" fill="#8A8271" text-anchor="end">INFERENCE</text>
+    <text x="144" y="600" font-size="13" fill="#4A463C">单 stream 按拓扑序下发 kernel</text>
+    <text x="144" y="620" font-size="13" fill="#4A463C">预热后捕获为 CUDA Graph，一次 launch 重放整张图</text>
+  </g>
+
+  <!-- ============ right: panel ============ -->
+  <rect x="710" y="158" width="430" height="476" rx="6" fill="#E9EDE8"/>
+  <text x="740" y="196" font-size="12" letter-spacing="3" fill="#6B7A71">READING THE PIPELINE</text>
+
+  <!-- stat chips -->
+  <g>
+    <rect x="740" y="212" width="116" height="76" rx="4" fill="#FCFAF3" stroke="#D9CFBB"/>
+    <text x="798" y="246" font-size="20" font-weight="700" fill="#173F3C" text-anchor="middle">8 → 5</text>
+    <text x="798" y="270" font-size="11" fill="#6E675A" text-anchor="middle">kernels 融合后</text>
+
+    <rect x="864" y="212" width="116" height="76" rx="4" fill="#FCFAF3" stroke="#D9CFBB"/>
+    <text x="922" y="246" font-size="20" font-weight="700" fill="#173F3C" text-anchor="middle">1 次</text>
+    <text x="922" y="270" font-size="11" fill="#6E675A" text-anchor="middle">cudaMalloc 总数</text>
+
+    <rect x="988" y="212" width="116" height="76" rx="4" fill="#FCFAF3" stroke="#D9CFBB"/>
+    <text x="1046" y="246" font-size="20" font-weight="700" fill="#173F3C" text-anchor="middle">−4.5 μs</text>
+    <text x="1046" y="270" font-size="11" fill="#6E675A" text-anchor="middle">Graph 重放节省</text>
+  </g>
+
+  <line x1="740" y1="312" x2="1110" y2="312" stroke="#D5DCD4" stroke-width="1"/>
+
+  <!-- bullets -->
+  <g font-size="12.5" fill="#4A463C">
+    <circle cx="745" cy="332" r="3" fill="#0F6B5C"/>
+    <text x="762" y="336">加载、建图、规划都在初始化完成，</text>
+    <text x="762" y="358">稳态推理只剩一次 cudaGraphLaunch。</text>
+
+    <circle cx="745" cy="388" r="3" fill="#0F6B5C"/>
+    <text x="762" y="392">融合在图构建期完成：8 kernel → 5，</text>
+    <text x="762" y="414">中间结果全局内存只写一次（−4.7 μs）。</text>
+
+    <circle cx="745" cy="444" r="3" fill="#0F6B5C"/>
+    <text x="762" y="448">显存复用不改 kernel，延迟贡献 ≈ 0，</text>
+    <text x="762" y="470">价值在峰值 −16~20%（4 块 → 3 块）。</text>
+
+    <circle cx="745" cy="500" r="3" fill="#0F6B5C"/>
+    <text x="762" y="504">Graph 只捕获纯计算 kernel，</text>
+    <text x="762" y="526">H2D / D2H 留在图外，经固定地址交互。</text>
+
+    <circle cx="745" cy="556" r="3" fill="#0F6B5C"/>
+    <text x="762" y="560">四个开关可任意组合，消融结论 30 秒</text>
+    <text x="762" y="582">复现：./build/tinyinfer_test .</text>
+  </g>
+
+  <!-- takeaway -->
+  <line x1="60" y1="656" x2="1140" y2="656" stroke="#CBC1AC" stroke-width="1"/>
+  <text x="60" y="682" font-size="16" font-weight="700" fill="#0F6B5C">Takeaway</text>
+  <text x="152" y="682" font-size="15" fill="#173F3C">· 每一项机制的收益与边界，都能用 30 秒复现的消融数据说清楚。</text>
+</svg>
